@@ -3,7 +3,7 @@ from flask import (
         g,
         request,
         jsonify,
-        make_respone,
+        make_response,
         render_template,
 )
 import sqlite3
