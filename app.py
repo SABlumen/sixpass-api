@@ -31,3 +31,6 @@ def close_db(e=None):
 @app.route("/", methods=["GET"])
 def root():
     return render_template("index.html"), 200
+
+if __name__ == "__main__":
+    app.run(debug=True)
