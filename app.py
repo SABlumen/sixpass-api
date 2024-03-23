@@ -30,4 +30,4 @@ def close_db(e=None):
 
 @app.route("/", methods=["GET"])
 def root():
-    return render_template("index"), 200
+    return render_template("index.html"), 200
