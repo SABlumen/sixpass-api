@@ -1,8 +1,9 @@
 drop table if exists user;
 CREATE TABLE user(
     "id" INTEGER PRIMARY KEY,
-    'email' TEXT UNIQUE NOT NULL,
-    'password' TEXT NOT NULL
+    "email" TEXT UNIQUE NOT NULL,
+    "password" TEXT NOT NULL,
+    "salt" TEXT UNIQUE NOT NULL
 );
 drop table if exists password;
 CREATE TABLE password(
@@ -11,7 +12,7 @@ CREATE TABLE password(
     "title" TEXT UNIQUE,
     "url" TEXT NOT NULL,
     "username" TEXT,
-    "password" TEXT NOT NULL,
+    "password" TEXT,
     "note" TEXT,
     "created" DATETIME NOT NULL,
     "accessed" DATETIME,
@@ -26,7 +27,6 @@ CREATE TABLE label(
     "name" TEXT,
     FOREIGN KEY ("user_id")
         REFERENCES user ("id")
-
 );
 drop table if exists association;
 CREATE TABLE association(
