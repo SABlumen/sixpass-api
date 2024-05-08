@@ -25,7 +25,7 @@ def test_create_user(client):
     assert response.status_code == 201  # Created
 
 
-def test_get_user_salt(client):
+def test_get_user_salt():
     # Test case for retrieving a salt from the database for a specific user
     id = 999
     salt = b"\x14\x1cu\x1f/\x0e\xfe*\xd87\x1b\x1a)\x88\xba."
@@ -94,7 +94,7 @@ def test_passwords_missing_data(client):
     assert response.status_code == 400  # Bad request
 
 
-def test_password_create(client):
+def test_passwords_create(client):
     data = {
         "title": "Test Title",
         "url": "http://example.com",
@@ -109,3 +109,11 @@ def test_password_create(client):
         "/passwords", json=data, headers={"Authorization": credentials}
     )
     assert response.status_code == 201  # Created
+
+
+def test_passwords_get(client):
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    response = client.get("/passwords", headers={"Authorization": credentials})
+    assert response.status_code == 200  # OK

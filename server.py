@@ -80,6 +80,7 @@ def get_user_salt(id, db):
     return salt
 
 
+# Function to encrypt password using AES, CBC mode and PKCS7 padding
 def encryptor(data: bytes, key: bytes) -> bytes:
     iv = get_random_bytes(AES_BLOCK_SIZE)
     cipher = AES.new(key, AES_MODE, iv)
@@ -87,14 +88,18 @@ def encryptor(data: bytes, key: bytes) -> bytes:
     return iv + ciphertext
 
 
+# Function to decrypt password using AES, CBC mode and PKCS7 padding
 def decryptor(encrypted_data: bytes, key: bytes) -> bytes:
     iv = encrypted_data[:AES_BLOCK_SIZE]
+    print(f"IV: {type(iv)} {iv}")
     ciphertext = encrypted_data[AES_BLOCK_SIZE:]
+    print(f"Ciphertext: {type(ciphertext)} {ciphertext}")
     cipher = AES.new(key, AES_MODE, iv)
     decrypted_data = unpad(cipher.decrypt(ciphertext), AES_BLOCK_SIZE)
     return decrypted_data
 
 
+# Database connection
 def get_db():
     if "db" not in g:
         g.db = sqlite3.connect("db.sqlite3")
@@ -103,6 +108,7 @@ def get_db():
     return g.db
 
 
+# Database closing
 @app.teardown_appcontext
 def close_db(e=None):
     db = g.pop("db", None)
@@ -110,11 +116,13 @@ def close_db(e=None):
         db.close()
 
 
+# Route to render index.html as default
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html"), 200
 
 
+# Route to create new user
 @app.route("/users", methods=["POST"])
 def create_user():
     data = request.get_json()
@@ -141,6 +149,7 @@ def create_user():
     return jsonify({"msg": "Successfully created user."}), 201
 
 
+# Route to get passwords and post new password
 @app.route("/passwords", methods=["GET", "POST"])
 @requires_auth
 def passwords():
@@ -148,8 +157,27 @@ def passwords():
         db = get_db()
         try:
             password_list = db.execute(
-                "SELECT * FROM passwords where id = ?", (g.user_id)
+                "SELECT * FROM password where id = ?", (g.user_id,)
             ).fetchall()
+            dict = {}
+            print(g.password.encode())
+            for row in password_list:
+                dict[row[0]] = {
+                    "title": row[2],
+                    "url": row[3],
+                    "username": row[4],
+                    "password": decryptor(
+                        b64decode(row[5]),
+                        derive_key(
+                            g.password.encode(), get_user_salt(g.user_id, db)
+                        )
+                    ).decode("utf-8"),
+                    "note": row[6],
+                    "created": row[7],
+                    "accessed": row[8],
+                    "modified": row[9],
+                }
+            return jsonify(dict), 200
         except sqlite3.IntegrityError:
             return jsonify({"msg": "No passwords stored for this user."}), 200
 
