@@ -148,19 +148,15 @@ def create_user():
     return jsonify({"msg": "Successfully created user."}), 201
 
 
-# Route to get passwords and post new password
-@app.route("/passwords", methods=["GET", "POST"])
-@requires_auth
-def passwords():
-    if request.method == "GET":
-        db = get_db()
-        try:
-            password_list = db.execute(
+def passwords_get():
+    db = get_db()
+    try:
+        password_list = db.execute(
                 "SELECT * FROM password where id = ?", (g.user_id,)
-            ).fetchall()
-            dict = {}
-            for row in password_list:
-                dict[row[0]] = {
+                ).fetchall()
+        dict = {}
+        for row in password_list:
+            dict[row[0]] = {
                     "title": row[2],
                     "url": row[3],
                     "username": row[4],
@@ -168,36 +164,37 @@ def passwords():
                         b64decode(row[5]),
                         derive_key(
                             g.password.encode(), get_user_salt(g.user_id, db)
-                        )
-                    ).decode("utf-8"),
+                            )
+                        ).decode("utf-8"),
                     "note": row[6],
                     "created": row[7],
                     "accessed": row[8],
                     "modified": row[9],
-                }
-            return jsonify(dict), 200
-        except sqlite3.IntegrityError:
-            return jsonify({"msg": "No passwords stored for this user."}), 200
+                    }
+        return jsonify(dict), 200
+    except sqlite3.IntegrityError:
+        return jsonify({"msg": "No passwords stored for this user."}), 200
 
-    elif request.method == "POST":
-        try:
-            data = request.get_json()
-            title = data["title"]
-            url = data["url"]
-            username = data["username"]
-            password = data["password"].encode("utf-8")
-            note = data["note"]
-        except KeyError as e:
-            missing = str(e).strip("'")
-            return jsonify({"error": f"Missing data field {missing}."}), 400
-        try:
-            db = get_db()
-            salt = get_user_salt(g.user_id, db)
-            DK = derive_key(g.password.encode(), salt)
-            encrypted_password = encryptor(bytes(password), DK)
 
-            db = get_db()
-            db.execute(
+def passwords_post():
+    try:
+        data = request.get_json()
+        title = data["title"]
+        url = data["url"]
+        username = data["username"]
+        password = data["password"].encode("utf-8")
+        note = data["note"]
+    except KeyError as e:
+        missing = str(e).strip("'")
+        return jsonify({"error": f"Missing data field {missing}."}), 400
+    try:
+        db = get_db()
+        salt = get_user_salt(g.user_id, db)
+        DK = derive_key(g.password.encode(), salt)
+        encrypted_password = encryptor(bytes(password), DK)
+
+        db = get_db()
+        db.execute(
                 "INSERT INTO password (user_id, title, url, username, password, note, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     g.user_id,
@@ -207,13 +204,23 @@ def passwords():
                     b64encode(encrypted_password).decode("utf-8"),
                     note,
                     datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                ),
-            )
-            db.commit()
+                    ),
+                )
+        db.commit()
 
-            return jsonify({"msg": "Password stored successfully."}), 201
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+        return jsonify({"msg": "Password stored successfully."}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Route to get passwords and post new password
+@app.route("/passwords", methods=["GET", "POST"])
+@requires_auth
+def passwords():
+    if request.method == "GET":
+        return passwords_get()
+    elif request.method == "POST":
+        return passwords_post()
 
     return jsonify({"error": "Invalid request method."}), 405
 
