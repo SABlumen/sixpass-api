@@ -3,7 +3,7 @@ CREATE TABLE user(
     "id" INTEGER PRIMARY KEY,
     "email" TEXT UNIQUE NOT NULL,
     "password" TEXT NOT NULL,
-    "salt" TEXT UNIQUE NOT NULL
+    "salt" BLOB UNIQUE NOT NULL
 );
 drop table if exists password;
 CREATE TABLE password(
@@ -12,7 +12,7 @@ CREATE TABLE password(
     "title" TEXT UNIQUE,
     "url" TEXT NOT NULL,
     "username" TEXT,
-    "password" TEXT,
+    "password" BLOB,
     "note" TEXT,
     "created" DATETIME NOT NULL,
     "accessed" DATETIME,

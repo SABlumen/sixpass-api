@@ -8,6 +8,7 @@ from flask import (
 )
 import sqlite3
 import argon2
+from typing import Union
 from datetime import datetime, timedelta
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -74,7 +75,7 @@ def derive_key(password: str, salt: bytes) -> bytes:
 
 
 # Function to get user salt from db. Specify their id and provide the db.
-def get_user_salt(id, db):
+def get_user_salt(id: Union[str, int], db: sqlite3.Connection) -> bytes:
     c = db.cursor()
     salt = c.execute("SELECT salt FROM user where id = ?", (id,)).fetchone()[0]
     return salt
@@ -91,9 +92,7 @@ def encryptor(data: bytes, key: bytes) -> bytes:
 # Function to decrypt password using AES, CBC mode and PKCS7 padding
 def decryptor(encrypted_data: bytes, key: bytes) -> bytes:
     iv = encrypted_data[:AES_BLOCK_SIZE]
-    print(f"IV: {type(iv)} {iv}")
     ciphertext = encrypted_data[AES_BLOCK_SIZE:]
-    print(f"Ciphertext: {type(ciphertext)} {ciphertext}")
     cipher = AES.new(key, AES_MODE, iv)
     decrypted_data = unpad(cipher.decrypt(ciphertext), AES_BLOCK_SIZE)
     return decrypted_data
@@ -135,7 +134,7 @@ def create_user():
 
     ph = argon2.PasswordHasher()
     hashed = ph.hash(password)
-    salt = str(get_random_bytes(16))
+    salt = get_random_bytes(16)
     db = get_db()
     try:
         db.execute(
@@ -160,7 +159,6 @@ def passwords():
                 "SELECT * FROM password where id = ?", (g.user_id,)
             ).fetchall()
             dict = {}
-            print(g.password.encode())
             for row in password_list:
                 dict[row[0]] = {
                     "title": row[2],

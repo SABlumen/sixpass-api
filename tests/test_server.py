@@ -9,7 +9,10 @@ sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 )
 
+from createdb import create_db
 from server import get_user_salt, app
+
+create_db()
 
 
 @pytest.fixture
