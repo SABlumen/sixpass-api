@@ -188,3 +188,51 @@ def test_passwords_put_and_delete(client):
         f"/passwords?id={pw_id}", headers={"Authorization": credentials}
     )
     assert control_response.status_code == 200  # OK
+
+
+def test_create_label(client):
+    # Test case for creating a new label with valid data
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    data = {"name": "Test Label"}
+    response = client.post(
+        "/labels", json=data, headers={"Authorization": credentials}
+    )
+    assert response.status_code == 201  # Created
+
+
+def test_get_labels(client):
+    # Test case for retrieving all labels for a user
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    response = client.get("/labels", headers={"Authorization": credentials})
+    assert response.status_code == 200  # OK
+
+
+def test_update_label(client):
+    # Test case for updating a label with valid data
+    label_id = 1  # Assuming label ID exists in the test database
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    data = {"name": "Updated Label Name"}
+    response = client.put(
+        f"/labels/{label_id}",
+        json=data,
+        headers={"Authorization": credentials},
+    )
+    assert response.status_code == 200  # OK
+
+
+def test_delete_label(client):
+    # Test case for deleting a label
+    label_id = 1  # Assuming label ID exists in the test database
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    response = client.delete(
+        f"/labels/{label_id}", headers={"Authorization": credentials}
+    )
+    assert response.status_code == 200  # OK
