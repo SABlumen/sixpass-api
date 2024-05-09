@@ -24,7 +24,7 @@ drop table if exists label;
 CREATE TABLE label(
     "id" INTEGER PRIMARY KEY,
     "user_id" INTEGER NOT NULL,
-    "name" TEXT,
+    "name" TEXT UNIQUE NOT NULL,
     FOREIGN KEY ("user_id")
         REFERENCES user ("id")
 );
