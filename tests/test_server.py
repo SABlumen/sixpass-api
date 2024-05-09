@@ -75,19 +75,14 @@ def test_create_user_missing_data(client):
 
 
 def test_create_user_existing_email(client):
-    # Test case for creating a user with existing email
+    # Test for creating a user with an existing email
     data = {"username": "test@example.com", "password": "password"}
     response = client.post("/users", json=data)
     assert response.status_code == 400  # Bad request
 
 
-def test_passwords_put(client):
-    # Testing PUT request
-    response = client.put("/passwords")
-    assert response.status_code == 405  # Method not allowed
-
-
 def test_passwords_missing_data(client):
+    # Test for creating a password while not providing data
     credentials = "Basic " + base64.b64encode(
         b"test@example.com:password"
     ).decode("utf-8")
@@ -97,7 +92,8 @@ def test_passwords_missing_data(client):
     assert response.status_code == 400  # Bad request
 
 
-def test_passwords_create(client):
+def test_passwords_post(client):
+    # Test for creating a password
     data = {
         "title": "Test Title",
         "url": "http://example.com",
@@ -112,6 +108,7 @@ def test_passwords_create(client):
         "/passwords", json=data, headers={"Authorization": credentials}
     )
     assert response.status_code == 201  # Created
+    assert response.json["password_id"]
 
 
 def test_passwords_get(client):
@@ -120,3 +117,74 @@ def test_passwords_get(client):
     ).decode("utf-8")
     response = client.get("/passwords", headers={"Authorization": credentials})
     assert response.status_code == 200  # OK
+
+
+def test_passwords_put_missing_id(client):
+    # Test case for receiving an error if no password id is provided
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    response = client.put(
+        "/passwords",
+        json={},
+        headers={"Authorization": credentials},
+    )
+    assert response.status_code == 400  # Bad Request
+
+
+def test_passwords_put_and_delete(client):
+    # Test case for updating a password with valid data
+    # Craft a POST request to create password to be used for PUT later
+    create_data = {
+        "title": "Test Password for PUT",
+        "url": "http://example.com",
+        "username": "test_user",
+        "password": "test_password",
+        "note": "Test note for PUT",
+    }
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    create_response = client.post(
+        "/passwords", json=create_data, headers={"Authorization": credentials}
+    )
+    assert create_response.json["password_id"]
+    pw_id = create_response.json["password_id"]
+    assert create_response.status_code == 201  # Created
+
+    # Craft the PUT request
+    update_data = {
+        "title": "Updated Title",
+        "url": "http://example.com/updated",
+        "username": "updated_user",
+        "password": "updated_password",
+        "note": "Updated note",
+    }
+    response = client.put(
+        f"/passwords?id={pw_id}",
+        json=update_data,
+        headers={"Authorization": credentials},
+    )
+    assert response.status_code == 200  # OK
+
+    # Control section for verifying correct results
+    control_response = client.get(
+        "/passwords", headers={"Authorization": credentials}
+    )
+    assert control_response.status_code == 200  # OK
+
+    passwords_data = control_response.json
+    assert f"{pw_id}" in passwords_data
+    updated_password = passwords_data[f"{pw_id}"]
+    assert updated_password["title"] == update_data["title"]
+    assert updated_password["url"] == update_data["url"]
+    assert updated_password["username"] == update_data["username"]
+    assert updated_password["note"] == update_data["note"]
+    # Control that the password is decrypted correctly
+    assert updated_password["password"] == update_data["password"]
+
+    # Delete the password
+    control_response = client.delete(
+        f"/passwords?id={pw_id}", headers={"Authorization": credentials}
+    )
+    assert control_response.status_code == 200  # OK
