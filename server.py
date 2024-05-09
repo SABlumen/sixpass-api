@@ -327,7 +327,7 @@ def passwords():
 # Route to get all labels for a user
 @app.route("/labels", methods=["GET"])
 @requires_auth
-def get_labels():
+def labels_get():
     db = get_db()
     labels = db.execute(
         "SELECT * FROM label WHERE user_id = ?", (g.user_id,)
@@ -339,7 +339,7 @@ def get_labels():
 # Route to create a new label
 @app.route("/labels", methods=["POST"])
 @requires_auth
-def create_label():
+def labels_post():
     data = request.get_json()
     try:
         name = data["name"]
@@ -369,7 +369,7 @@ def create_label():
 # Route to update a label given its ID
 @app.route("/labels/<int:label_id>", methods=["PUT"])
 @requires_auth
-def update_label(label_id):
+def labels_put(label_id):
     data = request.get_json()
     try:
         name = data["name"]
@@ -402,7 +402,7 @@ def update_label(label_id):
 # Route to delete a label given its ID
 @app.route("/labels/<int:label_id>", methods=["DELETE"])
 @requires_auth
-def delete_label(label_id):
+def labels_delete(label_id):
     db = get_db()
     try:
         db.execute(
