@@ -324,6 +324,105 @@ def passwords():
     return jsonify({"error": "Invalid request method."}), 405
 
 
+# Route to get all labels for a user
+@app.route("/labels", methods=["GET"])
+@requires_auth
+def get_labels():
+    db = get_db()
+    labels = db.execute(
+        "SELECT * FROM label WHERE user_id = ?", (g.user_id,)
+    ).fetchall()
+    labels_list = [{"id": label[0], "name": label[2]} for label in labels]
+    return jsonify(labels_list), 200
+
+
+# Route to create a new label
+@app.route("/labels", methods=["POST"])
+@requires_auth
+def create_label():
+    data = request.get_json()
+    try:
+        name = data["name"]
+    except KeyError as e:
+        missing = str(e).strip("'")
+        return jsonify({"error": f"Missing {missing}."}), 400
+
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            "INSERT INTO label (user_id, name) VALUES (?, ?)",
+            (g.user_id, name),
+        )
+        db.commit()
+        label_id = cursor.lastrowid
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Label name already exists."}), 400
+    return (
+        jsonify(
+            {"msg": "Label created successfully.", "label_id": f"{label_id}"}
+        ),
+        201,
+    )
+
+
+# Route to update a label given its ID
+@app.route("/labels/<int:label_id>", methods=["PUT"])
+@requires_auth
+def update_label(label_id):
+    data = request.get_json()
+    try:
+        name = data["name"]
+    except KeyError as e:
+        missing = str(e).strip("'")
+        return jsonify({"error": f"Missing {missing}."}), 400
+
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            "UPDATE label SET name = ? WHERE id = ? AND user_id = ?",
+            (name, label_id, g.user_id),
+        )
+        db.commit()
+        label_id = cursor.lastrowid
+        return (
+            jsonify(
+                {
+                    "msg": "Label updated successfully.",
+                    "label_id": f"{label_id}",
+                }
+            ),
+            200,
+        )
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Label name already exists."}), 400
+
+
+# Route to delete a label given its ID
+@app.route("/labels/<int:label_id>", methods=["DELETE"])
+@requires_auth
+def delete_label(label_id):
+    db = get_db()
+    try:
+        db.execute(
+            "DELETE FROM label WHERE id = ? AND user_id = ?",
+            (label_id, g.user_id),
+        )
+        db.commit()
+        return (
+            jsonify(
+                {
+                    "msg": "Label deleted successfully.",
+                    "label_id": f"{label_id}",
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # Run the server if executed from interactive python
 if __name__ == "__main__":
     app.run(debug=True)
