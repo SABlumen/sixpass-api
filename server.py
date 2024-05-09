@@ -3,13 +3,12 @@ from flask import (
     g,
     request,
     jsonify,
-    make_response,
     render_template,
 )
 import sqlite3
 import argon2
 from typing import Union
-from datetime import datetime, timedelta
+from datetime import datetime
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Protocol.KDF import PBKDF2
@@ -26,10 +25,12 @@ ITERATIONS = 100000
 AES_BLOCK_SIZE = 16
 AES_MODE = AES.MODE_CBC
 
+# Create Flask app
 app = Flask(__name__)
 app.secret_key = "notsafe"
 
 
+# Function to authenticate the user performing the current request
 def authenticate_user():
     auth_header = request.headers.get("Authorization")
     if not auth_header:
@@ -148,34 +149,36 @@ def create_user():
     return jsonify({"msg": "Successfully created user."}), 201
 
 
+# Function to get all passwords for a user
 def passwords_get():
     db = get_db()
     try:
         password_list = db.execute(
-                "SELECT * FROM password where id = ?", (g.user_id,)
-                ).fetchall()
+            "SELECT * FROM password where user_id = ?", (g.user_id,)
+        ).fetchall()
         dict = {}
         for row in password_list:
             dict[row[0]] = {
-                    "title": row[2],
-                    "url": row[3],
-                    "username": row[4],
-                    "password": decryptor(
-                        b64decode(row[5]),
-                        derive_key(
-                            g.password.encode(), get_user_salt(g.user_id, db)
-                            )
-                        ).decode("utf-8"),
-                    "note": row[6],
-                    "created": row[7],
-                    "accessed": row[8],
-                    "modified": row[9],
-                    }
+                "title": row[2],
+                "url": row[3],
+                "username": row[4],
+                "password": decryptor(
+                    b64decode(row[5]),
+                    derive_key(
+                        g.password.encode(), get_user_salt(g.user_id, db)
+                    ),
+                ).decode("utf-8"),
+                "note": row[6],
+                "created": row[7],
+                "accessed": row[8],
+                "modified": row[9],
+            }
         return jsonify(dict), 200
     except sqlite3.IntegrityError:
         return jsonify({"msg": "No passwords stored for this user."}), 200
 
 
+# Function to create a new password
 def passwords_post():
     try:
         data = request.get_json()
@@ -194,36 +197,133 @@ def passwords_post():
         encrypted_password = encryptor(bytes(password), DK)
 
         db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            "INSERT INTO password (user_id, title, url, username, password, note, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                g.user_id,
+                title,
+                url,
+                username,
+                b64encode(encrypted_password).decode("utf-8"),
+                note,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
+        )
+        db.commit()
+        password_id = cursor.lastrowid
+
+        return (
+            jsonify(
+                {
+                    "msg": "Password stored successfully.",
+                    "password_id": f"{password_id}",
+                }
+            ),
+            201,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Function to update a password given its ID
+def passwords_put(password_id: str) -> tuple:
+    try:
+        data = request.get_json()
+        db = get_db()
+
+        existing_password = db.execute(
+            "SELECT id from password WHERE id=? AND user_id=?",
+            (password_id, g.user_id),
+        ).fetchone()
+        if not existing_password:
+            return jsonify({"error": "Password not found."}), 400
+
+        update_fields = {}
+        allow_fields = ["title", "url", "username", "password", "note"]
+        for field in allow_fields:
+            if field in data:
+                update_fields[field] = data[field]
+
+        if "password" in update_fields:
+            salt = get_user_salt(g.user_id, db)
+            DK = derive_key(g.password.encode(), salt)
+            encrypted_password = encryptor(
+                update_fields["password"].encode(), DK
+            )
+            update_fields["password"] = b64encode(encrypted_password).decode(
+                "utf-8"
+            )
+
+        update_fields["modified"] = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        query = "UPDATE password SET "
+        query += ", ".join([f"{key} = ?" for key in update_fields])
+        query += " WHERE id = ? AND user_id = ?"
+
         db.execute(
-                "INSERT INTO password (user_id, title, url, username, password, note, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (
-                    g.user_id,
-                    title,
-                    url,
-                    username,
-                    b64encode(encrypted_password).decode("utf-8"),
-                    note,
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    ),
-                )
+            query, tuple(update_fields.values()) + (password_id, g.user_id)
+        )
         db.commit()
 
-        return jsonify({"msg": "Password stored successfully."}), 201
+        return (
+            jsonify(
+                {
+                    "msg": "Password updated successfully.",
+                    "password_id": f"{password_id}",
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Function to delete a password given its ID
+def passwords_delete(password_id):
+    try:
+        db = get_db()
+        db.execute(
+            "DELETE FROM password WHERE id=? AND user_id=?",
+            (password_id, g.user_id),
+        )
+        db.commit()
+
+        return jsonify({"msg": "Password deleted successfully."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # Route to get passwords and post new password
-@app.route("/passwords", methods=["GET", "POST"])
+@app.route("/passwords", methods=["GET", "POST", "PUT", "DELETE"])
 @requires_auth
 def passwords():
     if request.method == "GET":
         return passwords_get()
     elif request.method == "POST":
         return passwords_post()
+    elif request.method == "PUT":
+        password_id = request.args.get("id")
+        if not password_id:
+            return (
+                jsonify({"error": "Missing password ID."}),
+                400,
+            )
+        return passwords_put(password_id)
+    elif request.method == "DELETE":
+        password_id = request.args.get("id")
+        if not password_id:
+            return (
+                jsonify({"error": "Missing password ID."}),
+                400,
+            )
+        return passwords_delete(password_id)
 
     return jsonify({"error": "Invalid request method."}), 405
 
 
+# Run the server if executed from interactive python
 if __name__ == "__main__":
     app.run(debug=True)
