@@ -199,7 +199,9 @@ def passwords_post():
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
-            "INSERT INTO password (user_id, title, url, username, password, note, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO password ("
+            "user_id, title, url, username, password, note, created"
+            ") VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 g.user_id,
                 title,
@@ -421,6 +423,78 @@ def labels_delete(label_id):
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# Route to associate a label with a password
+@app.route("/labels/associate", methods=["POST"])
+@requires_auth
+def associate_label_with_password():
+    data = request.get_json()
+    try:
+        label_id = data["label_id"]
+        password_id = data["password_id"]
+    except KeyError as e:
+        missing = str(e).strip("'")
+        return jsonify({"error": f"Missing {missing}."}), 400
+
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT INTO association (label_id, password_id) VALUES (?, ?)",
+            (label_id, password_id),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Association already exists."}), 400
+    return (
+        jsonify({"msg": "Label associated with password successfully."}),
+        201,
+    )
+
+
+# Route to get all passwords associated with a label
+@app.route("/labels/<int:label_id>/passwords", methods=["GET"])
+@requires_auth
+def label_passwords_get(label_id):
+    db = get_db()
+    try:
+        passwords = db.execute(
+            "SELECT p.id, p.title, p.url, p.username, "
+            "p.note, p.created, p.accessed, p.modified "
+            "FROM password p "
+            "JOIN association a ON p.id = a.password_id "
+            "WHERE a.label_id = ? AND p.user_id = ?",
+            (label_id, g.user_id)
+        ).fetchall()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    passwords_list = [
+            {
+               "id": password[0],
+               "title": password[1],
+               "url": password[2],
+               "username": password[3],
+               "note": password[4],
+               "created": password[5],
+               "accessed": password[6],
+               "modified": password[7]
+            } for password in passwords
+    ]
+    return jsonify(passwords_list), 200
+
+
+# Route to get all labels associated with a password
+@app.route("/passwords/<int:password_id>/labels", methods=["GET"])
+@requires_auth
+def get_password_labels(password_id):
+    db = get_db()
+    labels = db.execute(
+        "SELECT l.id, l.name FROM label l JOIN association a ON l.id = a.la"
+        "bel_id WHERE a.password_id = ? AND l.user_id = ?",
+        (password_id, g.user_id),
+    ).fetchall()
+    labels_list = [{"id": label[0], "name": label[1]} for label in labels]
+    return jsonify(labels_list), 200
 
 
 # Run the server if executed from interactive python
