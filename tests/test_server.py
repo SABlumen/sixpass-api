@@ -213,7 +213,7 @@ def test_get_labels(client):
 
 def test_update_label(client):
     # Test case for updating a label with valid data
-    label_id = 1  # Assuming label ID exists in the test database
+    label_id = 1  # Assuming label ID exists in the database
     credentials = "Basic " + base64.b64encode(
         b"test@example.com:password"
     ).decode("utf-8")
@@ -236,3 +236,110 @@ def test_delete_label(client):
         f"/labels/{label_id}", headers={"Authorization": credentials}
     )
     assert response.status_code == 200  # OK
+
+
+def test_get_passwords_for_label_empty(client):
+    # Test case for retrieving passwords associated with a label
+    # when the label has none associated
+    label_id = 1  # Assuming label ID exists in the test database
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    response = client.get(
+        f"/labels/{label_id}/passwords", headers={"Authorization": credentials}
+    )
+    assert response.status_code == 200  # OK
+    assert isinstance(response.json, list)
+    assert len(response.json) == 0
+
+
+def test_associate_label_with_password(client):
+    # Test case for associating a label with a password
+
+    # Create a new label
+    label_data = {"name": "Test Label for associations"}
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    label_response = client.post(
+        "/labels", json=label_data, headers={"Authorization": credentials}
+    )
+    assert label_response.status_code == 201  # Created
+    assert "label_id" in label_response.json
+    label_id = label_response.json["label_id"]
+
+    # Create a new password
+    password_data = {
+        "title": "Test Password for assoications",
+        "url": "http://example.com",
+        "username": "test_user",
+        "password": "test_password",
+        "note": "Test note",
+    }
+    password_response = client.post(
+        "/passwords",
+        json=password_data,
+        headers={"Authorization": credentials},
+    )
+    assert password_response.status_code == 201  # Created
+    assert "password_id" in password_response.json
+    password_id = password_response.json["password_id"]
+
+    # Associate the label with the password
+    data = {"label_id": label_id, "password_id": password_id}
+    associate_response = client.post(
+        "/labels/associate", json=data, headers={"Authorization": credentials}
+    )
+    assert associate_response.status_code == 201  # Created
+
+
+def test_get_labels_for_password(client):
+    # Test case for retrieving labels associated with a password
+
+    # Create a new label
+    label_data = {"name": "Test Label 23"}
+    credentials = "Basic " + base64.b64encode(
+        b"test@example.com:password"
+    ).decode("utf-8")
+    label_response = client.post(
+        "/labels", json=label_data, headers={"Authorization": credentials}
+    )
+    assert label_response.status_code == 201  # Created
+    assert "label_id" in label_response.json
+    label_id = label_response.json["label_id"]
+
+    # Create a new password
+    password_data = {
+        "title": "Test Password 23",
+        "url": "http://example.com",
+        "username": "test_user",
+        "password": "test_password",
+        "note": "Test note",
+    }
+    password_response = client.post(
+        "/passwords",
+        json=password_data,
+        headers={"Authorization": credentials},
+    )
+    assert password_response.status_code == 201  # Created
+    assert "password_id" in password_response.json
+    password_id = password_response.json["password_id"]
+
+    # Associate the label with the password
+    associate_data = {"label_id": label_id, "password_id": password_id}
+    associate_response = client.post(
+        "/labels/associate",
+        json=associate_data,
+        headers={"Authorization": credentials},
+    )
+    assert associate_response.status_code == 201  # Created
+
+    # Get labels associated with the password
+    response = client.get(
+        f"/passwords/{password_id}/labels",
+        headers={"Authorization": credentials},
+    )
+    assert response.status_code == 200  # OK
+    assert isinstance(response.json, list)
+    assert str(response.json[0]["id"]) == label_id
+    assert response.json[0]["name"] == "Test Label 23"
