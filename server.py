@@ -464,21 +464,22 @@ def label_passwords_get(label_id):
             "FROM password p "
             "JOIN association a ON p.id = a.password_id "
             "WHERE a.label_id = ? AND p.user_id = ?",
-            (label_id, g.user_id)
+            (label_id, g.user_id),
         ).fetchall()
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     passwords_list = [
-            {
-               "id": password[0],
-               "title": password[1],
-               "url": password[2],
-               "username": password[3],
-               "note": password[4],
-               "created": password[5],
-               "accessed": password[6],
-               "modified": password[7]
-            } for password in passwords
+        {
+            "id": password[0],
+            "title": password[1],
+            "url": password[2],
+            "username": password[3],
+            "note": password[4],
+            "created": password[5],
+            "accessed": password[6],
+            "modified": password[7],
+        }
+        for password in passwords
     ]
     return jsonify(passwords_list), 200
 
