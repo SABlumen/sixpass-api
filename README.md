@@ -99,7 +99,7 @@ The API returns appropriate HTTP status codes along with error messages in JSON 
 ## Requirements
 A few pip packages are required to run the Flask app.\
 \
-pip3 install Flask argon2-cffi pycryptodome
+pip3 install Flask argon2-cffi pycryptodome pytest
 
 If you are on Linux, you might need to install these via your package manager.
 
