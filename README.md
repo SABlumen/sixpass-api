@@ -120,6 +120,7 @@ Do not run this in a production environment. This is a testing app made for test
 ## Further development
 - Needs further security. HTTPS/reverse proxy.
 - Full CRUD for label associations should be implemented.
+- More routes with GET-method for passwords based on user-provided filters
 - Deleting a password should delete its associations first because of FK constraints.
 - A basic CLI for users to take inspiration from or utilize in the terminal.
 - More detailed pytests. More standardization, better test database environment, mocking, wider test coverage.
