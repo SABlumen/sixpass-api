@@ -108,7 +108,7 @@ If you are on Linux, you might need to install these via your package manager.
 To use the Password Manager API, first start the Flask app. Then send HTTP requests to the specified endpoints with appropriate authentication credentials and request bodies where required.
 
 Example creating a user with curl:\
-curl -X POST -H "Content-Type: application/json" -d '{"username": "test@example.com","password": "test123"}' http://localhost:5000/users
+curl -X POST -H "Content-Type: application/json" -d '{"email": "test@example.com","password": "test123"}' http://localhost:5000/users
 
 ## Disclaimer
 Do not run this in a production environment. This is a testing app made for testing and educational purposes. There are no guarantees for anything. It is also designed to be run locally with a reverse proxy or with HTTPS implemented. HTTPS IS NOT IMPLEMENTED.
